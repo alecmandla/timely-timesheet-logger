@@ -1,0 +1,20 @@
+# User-specific data (generated during setup)
+data/config.json
+data/weekly-tracking.json
+data/february-test-log.md
+
+# Test artifacts
+references/continuation-prompt-week4.md
+references/february-test-plan.md
+
+# Archive of past tracking data
+data/archive/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
