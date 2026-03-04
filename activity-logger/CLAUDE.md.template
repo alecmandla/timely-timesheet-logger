@@ -1,0 +1,39 @@
+# Activity Logging Instructions
+
+## IMPORTANT: Log all work sessions for timesheet tracking.
+
+At the **start** and **end** (or major context switch) of every session, append a JSON entry to the activity log file.
+
+### Log file path
+`REPLACE_WITH_ABSOLUTE_PATH/activity-log.json`
+
+### Entry format
+```json
+{
+  "id": "generate-uuid-v4",
+  "timestamp": "ISO-8601-with-timezone",
+  "duration_estimate_min": 0,
+  "session_type": "claude-code",
+  "summary": "1-2 sentence description of what was done",
+  "project_hints": ["project name", "codename"],
+  "client_hints": ["client name if known"],
+  "search_terms": ["repo-name", "branch-name", "feature-name", "ticket-id"],
+  "tools_mentioned": ["app names used"],
+  "files_touched": ["key files read/written"],
+  "confidence": "high|medium|low"
+}
+```
+
+### Rules
+- **Append only** — read file, parse array, push entry, write back. Create with `[]` if missing.
+- **Be specific** in `summary` and `search_terms`. "Wrote BigQuery ETL for Lightspeed inventory" beats "worked on data pipeline."
+- **Extract project context** from file paths, repo names, branch names, explicit mentions, ticket numbers.
+- **Never log** passwords, API keys, secrets, or full message contents.
+- **Skip logging** if user says "don't log this" or "off the record."
+- **Dedup** — if an entry with same timestamp (±5 min) and session_type exists, merge instead of duplicating.
+
+### Search term quality
+Good: `looker-automation`, `lightspeed-dms`, `PROJ-1234`, `feature/universal-linking`
+Bad: `code`, `file`, `working`, `stuff`
+
+This log is consumed by the Timely timesheet-logger to match generic app entries (e.g., "Claude — 45 min") to specific projects.

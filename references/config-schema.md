@@ -32,6 +32,12 @@ The skill uses a `config.json` file in its `data/` directory to store user-speci
     "confidence_threshold": "string — low/medium/high — minimum match confidence to auto-track. Default: low",
     "default_date_range": "string — default: current_week"
   },
+  "activity_log": {
+    "path": "string — path to the activity log JSON file. Default: data/activity-log.json (relative to skill root)",
+    "enabled": "boolean — whether to use the activity log for cross-referencing. Default: true",
+    "time_tolerance_min": "number — minutes of tolerance when matching timestamps. Default: 15",
+    "calendar_fallback": "boolean — whether to query Google Calendar for Zoom/Meet entries. Default: true"
+  },
   "setup_complete": false
 }
 ```
@@ -75,6 +81,12 @@ The skill uses a `config.json` file in its `data/` directory to store user-speci
     "skip_weekends": false,
     "confidence_threshold": "low",
     "default_date_range": "current_week"
+  },
+  "activity_log": {
+    "path": "data/activity-log.json",
+    "enabled": true,
+    "time_tolerance_min": 15,
+    "calendar_fallback": true
   },
   "setup_complete": false
 }
