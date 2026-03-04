@@ -2,6 +2,11 @@
 data/config.json
 data/weekly-tracking.json
 data/february-test-log.md
+data/activity-log.json
+data/activity-log.tmp.json
+
+# CLAUDE.md files contain user-specific absolute paths
+activity-logger/CLAUDE.md
 
 # Test artifacts
 references/continuation-prompt-week4.md

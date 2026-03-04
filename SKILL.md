@@ -172,6 +172,24 @@ This skill uses TWO browser tool systems. See [references/timely-ui-patterns.md]
 - Generic browser tabs (Google, YouTube, social media) unless a search term specifically appears
 - Calendar/meeting entries (these are scheduled time, not project work — unless the meeting title includes a project name)
 
+### Phase 3.5: Activity Log Cross-Reference (Generic Entry Resolution)
+
+After the standard search-term scan, run a **second pass** for unmatched entries that have only a generic app name (e.g., "Claude", "Zoom", "Terminal", "VS Code"). These entries are unmatchable by search terms alone because their descriptions contain no project-specific text.
+
+See [references/activity-log-integration.md](references/activity-log-integration.md) for full algorithm details.
+
+**Quick summary:**
+
+1. **Detect generic entries** — memory description matches only an application name with no distinguishing text
+2. **For Claude/Terminal/VS Code entries**: Query `data/activity-log.json` for entries whose `timestamp` overlaps the Timely memory's time window (±`config.activity_log.time_tolerance_min` minutes). Match the activity log's `search_terms` and `project_hints` against the project registry.
+3. **For Zoom/Meet entries**: Query Google Calendar for the time window. Match meeting titles against project search terms. If Fireflies is connected, scan transcripts for project keywords.
+4. **Assign confidence** based on the activity log entry's own confidence level combined with the search term match quality.
+5. **Handle overlaps** — if multiple activity log entries span the same Timely memory, split proportionally by `duration_estimate_min` and flag for user review.
+
+**When activity log is not available or empty**: Fall back to the standard behavior (skip generic entries). The skill works fine without the activity log — it just can't resolve those generic entries.
+
+**Config**: The activity log is controlled by `config.activity_log.enabled` (default: `true`). Set to `false` to skip this phase entirely.
+
 ## Phase 4: Tracking File Management
 
 All committed entries go into `data/weekly-tracking.json`. This is the source of truth for reconciliation reports.
