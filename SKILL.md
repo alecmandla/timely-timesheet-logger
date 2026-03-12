@@ -181,10 +181,10 @@ See [references/activity-log-integration.md](references/activity-log-integration
 **Quick summary:**
 
 1. **Detect generic entries** — memory description matches only an application name with no distinguishing text
-2. **For Claude/Terminal/VS Code entries**: Query `data/activity-log.json` for entries whose `timestamp` overlaps the Timely memory's time window (±`config.activity_log.time_tolerance_min` minutes). Match the activity log's `search_terms` and `project_hints` against the project registry.
+2. **For Claude/Terminal/VS Code entries**: Parse `data/activity-log.txt` for lines whose timestamp overlaps the Timely memory's time window (±`config.activity_log.time_tolerance_min` minutes). Match the activity log's `search_terms` and `projects` fields against the project registry.
 3. **For Zoom/Meet entries**: Query Google Calendar for the time window. Match meeting titles against project search terms. If Fireflies is connected, scan transcripts for project keywords.
-4. **Assign confidence** based on the activity log entry's own confidence level combined with the search term match quality.
-5. **Handle overlaps** — if multiple activity log entries span the same Timely memory, split proportionally by `duration_estimate_min` and flag for user review.
+4. **Assign confidence** based on the specificity of the activity log's search terms combined with the project registry match quality.
+5. **Handle overlaps** — if multiple activity log entries span the same Timely memory, flag for user review and let them decide the assignment.
 
 **When activity log is not available or empty**: Fall back to the standard behavior (skip generic entries). The skill works fine without the activity log — it just can't resolve those generic entries.
 

@@ -150,14 +150,20 @@ timely-timesheet-logger/
 ├── SKILL.md                          # Main skill instructions (Claude reads this)
 ├── README.md                         # This file
 ├── .gitignore                        # Excludes user-specific data
+├── activity-logger/
+│   ├── SKILL.md                      # Activity logger sub-skill instructions
+│   ├── CLAUDE.md                     # Global Claude instructions for logging (gitignored, user-specific paths)
+│   └── CLAUDE.md.template            # Template for generating CLAUDE.md during setup
 ├── data/
 │   ├── config.json                   # Your account settings (gitignored)
-│   └── weekly-tracking.json          # Running log of scans and commits (gitignored)
+│   ├── weekly-tracking.json          # Running log of scans and commits (gitignored)
+│   └── activity-log.txt              # Claude session activity log (gitignored)
 └── references/
     ├── setup-guide.md                # Onboarding flow details
     ├── config-schema.md              # Full config file schema
     ├── tracking-approach.md          # Why we use local JSON tracking
-    └── timely-ui-patterns.md         # Browser automation DOM selectors and workflows
+    ├── timely-ui-patterns.md         # Browser automation DOM selectors and workflows
+    └── activity-log-integration.md   # How activity log cross-references generic Timely entries
 ```
 
 ## How the Matching Works

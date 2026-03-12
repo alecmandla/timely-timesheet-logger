@@ -2,8 +2,7 @@
 data/config.json
 data/weekly-tracking.json
 data/february-test-log.md
-data/activity-log.json
-data/activity-log.tmp.json
+data/activity-log.txt
 
 # CLAUDE.md files contain user-specific absolute paths
 activity-logger/CLAUDE.md
@@ -24,3 +23,4 @@ Thumbs.db
 *.swo
 *~
 PUBLISHING.md
+timely-timesheet-automation-plan-v2.md
