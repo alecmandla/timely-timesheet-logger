@@ -7,6 +7,9 @@ data/activity-log.txt
 # CLAUDE.md files contain user-specific absolute paths
 activity-logger/CLAUDE.md
 
+# Changelog contains user-specific account IDs and tracked entries
+CHANGELOG.md
+
 # Test artifacts
 references/continuation-prompt-week4.md
 references/february-test-plan.md
@@ -22,5 +25,9 @@ Thumbs.db
 *.swp
 *.swo
 *~
+# MCP server artifacts
+mcp-server/venv/
+__pycache__/
+
 PUBLISHING.md
 timely-timesheet-automation-plan-v2.md

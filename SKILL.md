@@ -11,7 +11,7 @@ You are a time management assistant that bridges Timely's Memory Tracker with st
 
 Timely's Memory Tracker captures everything passively — every app, browser tab, terminal window, file edit. But these memories are raw signal mixed with noise. Your job is to be the intelligent filter: cross-referencing project context from Monday.com and email against memory descriptions to sort signal from noise, then automating the tedious click-by-click logging process in the Timely UI.
 
-**Key insight**: Memories are matched by *search terms*, not by project names. A memory for "example-etl-tool script running in terminal" matches the Example Project Alpha project not because it says "Example-Alpha" but because "example-etl-tool" is a known search term for that project. The skill's intelligence lives in building and refining these search term lists.
+**Key insight**: Memories are matched by *search terms*, not by project names. A memory for "acme-redesign script running in terminal" matches the Acme Website Redesign project not because it says "Acme" but because "acme-redesign" is a known search term for that project. The skill's intelligence lives in building and refining these search term lists.
 
 ## Two Operating Modes
 
@@ -115,7 +115,7 @@ When the agent discovers a new search term that would have matched an entry to a
 If a term appears in the `Ignorable Search Terms` column, the agent must skip any memory entry that would only match on that term. This lets the user suppress false positives without deleting search terms entirely. Example: "claude" might match many non-project activities, so it could be added as ignorable for a project where it causes noise.
 
 ### Search Term Quality Heuristics
-- **Good terms**: Specific tool names ("example-etl-tool"), file names ("launch-dashboard.js"), unique client identifiers ("example-alpha"), technical terms tied to the project ("universal linking", "bigquery dataset")
+- **Good terms**: Specific tool names ("acme-redesign"), file names ("launch-dashboard.js"), unique client identifiers ("acme"), technical terms tied to the project ("universal linking", "bigquery dataset")
 - **Bad terms**: Generic words that match everything ("chrome", "slack", "email", "google"), single characters, common English words
 - **Edge cases**: Terms that might match multiple projects need to be assigned to the most specific project. If "bigquery" could match three projects, prefer the one where BigQuery is the primary deliverable.
 
@@ -136,33 +136,43 @@ After loading terms from Monday.com, the agent may optionally enrich with:
 
 For each date being processed, scan and commit in one pass. See [references/timely-ui-patterns.md](references/timely-ui-patterns.md) for browser interaction details.
 
-### Two-Tool Architecture
-This skill uses TWO browser tool systems. See [references/timely-ui-patterns.md](references/timely-ui-patterns.md) for full details.
-- **Scanning**: Use `Control Chrome execute_javascript` — most reliable for navigation + DOM queries across many days
-- **Committing**: Use `Claude in Chrome` tools (`javascript_tool`, `computer` screenshot/click) — required for visual verification and mouse interaction
-- **NEVER use**: `read_page`, `find` (return empty on Timely's React SPA), or address bar typing (autocomplete hijacks URLs)
+### Headless Browser Architecture (via timely_mcp)
+This skill uses a **headless Playwright MCP server** (`timely_mcp`) for all Timely browser automation. This runs completely in the background — no visible browser windows, no stealing focus from the user's Chrome.
+
+See [mcp-server/](mcp-server/) for the server code and [references/timely-ui-patterns.md](references/timely-ui-patterns.md) for DOM selector details.
+
+**Available MCP tools:**
+- `timely_scan_day` — scan one day's memories against search terms (headless)
+- `timely_scan_range` — scan multiple days in a single call (headless)
+- `timely_commit_entry` — assign a memory entry to a project (headless)
+- `timely_check_session` — verify login status
+- `timely_login` — one-time headed browser for user to sign in
+- `timely_screenshot` / `timely_get_page_text` / `timely_run_js` — debugging tools
+
+**NEVER use** `Claude in Chrome` or `Control Chrome` tools for Timely — they steal focus from the user's active browser.
 
 ### Scanning workflow (per day):
-1. Navigate via `Control Chrome execute_javascript`: `window.location.href = '{url}'`
-2. Wait 3 seconds for the SPA to render
-3. Run the scan template (see `timely-ui-patterns.md`) via `execute_javascript` — extracts all memory entries and matches against search terms in a single JS call
-4. Collect results: `{ date, total_entries, matches: [{ idx, title, duration, term }] }`
-5. After scanning all days, present matches to the user grouped by date
+1. Call `timely_scan_day` with account_id, date, search_terms, and ignorable_terms
+2. The tool navigates headlessly, extracts memory entries, matches against search terms
+3. Returns: `{ date, total_entries, matches: [{ idx, title, duration, term }] }`
+4. For multi-day scans, use `timely_scan_range` instead (more efficient, single call)
+5. Present matches to the user grouped by date
 6. **Always show the search terms used per project** and confidence levels
 
 ### Commit workflow (per approved entry):
-1. Navigate the Claude in Chrome tab to the correct date via `navigate`
-2. Query entry coordinates via `javascript_tool` (using the `idx` from scan results)
-3. If entry x-coordinate > viewport width, scroll right then re-query coordinates
-4. Click the entry via `computer left_click` → wait 2s → screenshot to verify editor opened
-5. Check for memory grouping: if editor shows multiple memories, remove extras via X button
-6. Click the correct project name in the dropdown
-7. Click Save → wait 2s → screenshot to verify
-8. Re-query positions before clicking the next entry (DOM changes after each commit)
-9. Record committed entries in the tracking file
+1. Call `timely_commit_entry` with account_id, date, entry_index, and project_name
+2. The tool handles navigation, clicking the entry, selecting the project, and saving — all headlessly
+3. Returns success/failure status
+4. **Always re-scan after each commit** — DOM indices shift when entries are assigned
+5. Record committed entries in the tracking file
+
+### Session management:
+- Before the first scan of any run, call `timely_check_session` to verify login
+- If session is expired, call `timely_login` (this is the ONLY tool that opens a visible window)
+- Session cookies persist in `~/.timely-mcp/browser-data/` — login is typically needed only once every few weeks
 
 ### Match Confidence Levels:
-- **High**: Memory text contains a unique, specific term (e.g., "example-etl-tool" → Example Project Alpha). Only one project could match.
+- **High**: Memory text contains a unique, specific term (e.g., "acme-redesign" → Acme Website Redesign). Only one project could match.
 - **Medium**: Memory text contains a general term that matches one project (e.g., "bigquery" and only one project uses BigQuery).
 - **Low**: Memory text contains a general term that could match multiple projects, or the match is only on a client name.
 - **Ambiguous**: Memory matches search terms from two or more different projects. Flag for user review.

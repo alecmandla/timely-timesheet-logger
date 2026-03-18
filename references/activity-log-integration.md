@@ -19,7 +19,7 @@ YYYY-MM-DD HH:MM | session_type | summary | projects | search_terms
 Example:
 ```
 2026-03-04 14:30 | cowork | Building activity logger for timesheet automation | Timely Timesheet Logger | timely,timesheet,activity-logger,SKILL.md
-2026-03-04 15:45 | claude-code | Debugging BigQuery pipeline for inventory sync | Example Project Alpha | bigquery,example-alpha,inventory-sync,etl
+2026-03-04 15:45 | claude-code | Debugging BigQuery pipeline for inventory sync | Acme Analytics | bigquery,acme-analytics,inventory-sync,etl
 ```
 
 ## Parsing
@@ -99,7 +99,7 @@ Timely Memory: "Claude — 45 min (10:15 AM - 11:00 AM)" on 2026-03-04
 Timely Memory: "Zoom — 30 min (2:00 PM - 2:30 PM)" on 2026-03-04
   → Standard search: No match
   → Activity log: No matching line (Claude wasn't in the Zoom call)
-  → Calendar fallback: Google Calendar shows "Example Project Alpha Weekly Sync" at 2:00 PM
-  → Monday.com match: "example-alpha" matches project "Example Project Alpha"
-  → Result: Assign to "Example Project Alpha" with HIGH confidence
+  → Calendar fallback: Google Calendar shows "Acme Analytics Weekly Sync" at 2:00 PM
+  → Monday.com match: "acme-analytics" matches project "Acme Analytics"
+  → Result: Assign to "Acme Analytics" with HIGH confidence
 ```

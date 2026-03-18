@@ -15,7 +15,7 @@ Timely's Memory Tracker sees app-level activity: "Claude — 45 min", "Zoom — 
 
 The logging happens via CLAUDE.md instructions placed at two levels:
 - `~/.claude/CLAUDE.md` — picked up by every Claude Code session
-- `/Users/REDACTED_USERNAME/Documents/REDACTED_WORKSPACE/CLAUDE.md` — picked up by Cowork sessions rooted in REDACTED_WORKSPACE
+- `/path/to/your/workspace/CLAUDE.md` — picked up by Cowork sessions rooted in your workspace
 
 Both instruct Claude to run a single `echo >>` bash command before doing anything else, appending one line to the activity log.
 
@@ -37,14 +37,14 @@ Fields:
 Example lines:
 ```
 2026-03-04 14:30 | cowork | Building activity logger for timesheet automation | Timely Timesheet Logger | timely,timesheet,activity-logger,SKILL.md
-2026-03-04 15:45 | claude-code | Debugging BigQuery pipeline for example inventory sync | Example Project Alpha | bigquery,example-alpha,inventory-sync,etl
+2026-03-04 15:45 | claude-code | Debugging BigQuery pipeline for inventory sync | Acme Analytics | bigquery,acme-analytics,inventory-sync,etl
 2026-03-04 16:20 | cowork | Reviewing Monday.com board structure for Acme project | Acme Website Redesign | acme,monday,board-structure
 ```
 
 ## Log File Location
 
 ```
-/Users/REDACTED_USERNAME/Documents/REDACTED_WORKSPACE/Cowork_Skills/update_timesheet/timely-timesheet-logger/data/activity-log.txt
+/path/to/timely-timesheet-logger/data/activity-log.txt
 ```
 
 This is a plain text file. Each `echo >>` appends a new line. No JSON parsing, no file locking, no complexity.
@@ -53,7 +53,7 @@ This is a plain text file. Each `echo >>` appends a new line. No JSON parsing, n
 
 The timesheet logger matches these terms against Timely memory descriptions. Think like a grep:
 
-**Good**: `example-etl-tool`, `example-alpha-dms`, `PROJ-1234`, `feature/universal-linking`, `acme-redesign.figma`
+**Good**: `acme-redesign`, `inventory-sync`, `PROJ-1234`, `feature/universal-linking`, `acme-redesign.figma`
 **Bad**: `code`, `meeting`, `email`, `working`, `stuff`
 
 **Key heuristic**: If the term would match only ONE project in a list of 20, it's a good term.

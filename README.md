@@ -37,7 +37,7 @@ Each row on your board represents a project. Only rows with a populated "Timely 
 
 ### Search Terms — The Key Concept
 
-The skill matches memories by **search terms**, not project names. A memory titled "example-etl-tool script running in terminal" matches the Acme project not because it says "Acme" but because `example-etl-tool` is a known search term for that project.
+The skill matches memories by **search terms**, not project names. A memory titled "acme-redesign script running in terminal" matches the Acme project not because it says "Acme" but because `acme-redesign` is a known search term for that project.
 
 Good search terms are specific: tool names (`figma-acme`), file names (`launch-dashboard.js`), unique client identifiers (`acme.com`), repo names (`acme-redesign`). Bad search terms are generic: `chrome`, `slack`, `email`, `google`.
 
@@ -117,7 +117,7 @@ You add "Cloud Connect Analytics" to your Monday.com board on March 1st with sea
 
 > "Scan February for my timesheet"
 
-The skill scans all 28 days of February. Days where you already committed Example-Alpha or Example-Beta entries won't show those again (they're already logged). But any memory from February containing `cloud-connect`, `analytics-pipeline`, or `cc-dashboard` that was never assigned will surface for your review.
+The skill scans all 28 days of February. Days where you already committed entries for other projects won't show those again (they're already logged). But any memory from February containing `cloud-connect`, `analytics-pipeline`, or `cc-dashboard` that was never assigned will surface for your review.
 
 ## Operating Modes Summary
 
