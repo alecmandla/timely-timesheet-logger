@@ -20,6 +20,7 @@ All Timely browser automation runs through the `timely_mcp` MCP server, which us
 | `timely_scan_day` | Scan one day's memories against search terms | No (headless) |
 | `timely_scan_range` | Scan multiple days in a single call | No (headless) |
 | `timely_commit_entry` | Assign a memory entry to a project | No (headless) |
+| `timely_create_project` | Create a new project in Timely via API | No (API call) |
 | `timely_check_session` | Verify login status | No (headless) |
 | `timely_login` | One-time sign-in | **Yes (visible)** |
 | `timely_screenshot` | Debug: capture current page state | No (headless) |

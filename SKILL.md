@@ -38,7 +38,7 @@ On the first Monday of each month, the reconciliation includes an additional ste
 3. Present any stragglers found — these are entries that slipped through daily passes or were never matched
 4. Get user approval and commit them
 
-**Why**: The director of operations generates client invoices on the first Monday of the month. All prior-month time must be fully assigned before then.
+**Why**: Ensures all prior-month time is fully assigned before month-end invoicing or reporting.
 
 **How to detect first Monday**: Check if today's date is ≤ 7 (i.e., it's the 1st through 7th of the month and it's a Monday).
 
@@ -56,25 +56,72 @@ This skill requires the most powerful available model (currently Claude Opus 4.6
 
 Before anything else, check for `data/config.json` in the skill directory. If missing or `setup_complete` is false, run the setup flow. See [references/setup-guide.md](references/setup-guide.md) for the full onboarding process. Setup includes config collection, validation, **and creating the daily/weekly scheduled tasks** so the skill runs hands-free from day one.
 
+## Board Management
+
+The skill supports **multiple Monday.com boards** as project sources. Each board can have a completely different column structure. Boards can be added or removed at any time without re-running the full setup flow.
+
+### Adding a Board
+
+When the user wants to add a new board (either during setup or later), the skill walks through the per-board configuration:
+
+1. **Board selection** — "Which board should I add?" Use `get_user_context` or `get_board_info` to help the user identify boards.
+2. **Timely project name mapping** — "Which column should I use as the project name in Timely, or should I use the item name itself?" This determines what the Timely project will be called.
+3. **Billable status mapping** — "How should I determine if a project is billable or non-billable?" Ask which column and which values map to billable vs. non-billable. Some orgs use a status column with dropdown labels (e.g., "Billable", "Hourly", "Monthly", "Non-Billable"), others use a checkbox, and some don't track it at all.
+4. **Search terms column** — "Which column should I use to read and write search terms for matching?" If the column doesn't exist, offer to create it.
+5. **Ignorable terms column** — "Which column should I use for ignorable search terms?" Optional; offer to create if desired.
+6. **People column** — "Which column identifies who is assigned to each project?" This is used to filter down to only the current user's projects.
+7. **Project status filtering** — "How do you indicate that a project is active vs. not started vs. completed?" Ask whether this is determined by a status column, by board groups, or both. Then ask which status values or group names mean "actively tracking time." All other statuses/groups are treated as inactive (not scanned).
+
+After collecting these details, validate by querying the board to confirm the columns exist and at least one project matches the user's People column assignment and active status criteria.
+
+Store the board config in `config.boards[]` as a new entry. See [references/config-schema.md](references/config-schema.md) for the full schema.
+
+### Removing a Board
+
+When the user says they no longer need to track time for a particular board:
+
+1. Confirm which board to remove
+2. Remove the board entry from `config.boards[]`
+3. **Do NOT delete Timely projects** that were sourced from that board — they may still have logged time against them
+4. **Do NOT delete historical tracking data** — it remains in the tracking file for reconciliation
+
+### Duplicate Project Name Detection
+
+When building the project registry across multiple boards, check for duplicate Timely project names. If two or more items across any boards would produce the same Timely project name:
+
+1. Flag the collision to the user with the specific items and boards involved
+2. Ask how to differentiate them — options include prepending the client name, appending the board name, or letting the user manually specify a unique name
+3. Do not create Timely projects until all collisions are resolved
+
+This check runs during setup, when adding a board, and at the start of each daily scan (in case items were added to boards between runs).
+
 ## Phase 1: Project Discovery
 
-Query the Monday.com board specified in config (`monday.board_id`) for items with a populated Timely project name column (`monday.timely_name_column_id`).
+For each board in `config.boards[]`, query for items where the user is assigned (via the board's configured People column) and where the project status is active (via the board's configured status column/groups).
 
 ```
-Tool: get_board_items_page
-Board: {config.monday.board_id}
-Include columns: name, {timely_name_column_id}, {client_name_column_id}, {search_terms_column_id}, {ignorable_terms_column_id}, status
-Filter: timely_name_column_id is_not_empty
+For each board in config.boards:
+  Tool: get_board_items_page
+  Board: {board.board_id}
+  Include columns: name, {board.timely_name_column_id}, {board.search_terms_column_id}, {board.ignorable_terms_column_id}, {board.status_column_id}, {board.people_column_id}
+  Filter: people_column contains current user's Monday.com user ID
 ```
 
-Build a project registry:
+After querying, filter results by active status:
+- If `board.status_filter.mode` is `"status_column"`: only include items whose status value is in `board.status_filter.active_statuses`
+- If `board.status_filter.mode` is `"groups"`: only include items in groups listed in `board.status_filter.active_groups`
+- If `board.status_filter.mode` is `"both"`: item must satisfy either condition (status is active OR item is in an active group)
+
+Build a unified project registry across all boards:
 ```json
 {
   "Acme Website Redesign": {
+    "source_board_id": "{board_id}",
+    "source_board_name": "Projects Board",
     "monday_item_id": "{item_id}",
     "monday_item_name": "Acme Corp Website Redesign",
-    "client": "Acme Corp",
     "timely_project_name": "Acme Website Redesign",
+    "billable": true,
     "status": "In Progress",
     "search_terms": ["acme-redesign", "figma-acme", "acme.com", "website redesign"],
     "ignorable_terms": []
@@ -82,24 +129,31 @@ Build a project registry:
 }
 ```
 
-**Decision**: If zero projects have Timely names mapped, tell the user: "No projects have Timely project names set up yet. Add the Timely project name to at least one item on your Monday.com board, then run me again."
+**Decision**: If zero active projects are found assigned to the user across all boards, tell the user: "I didn't find any active projects assigned to you on the configured boards. Check that you're assigned to projects in the People column and that those projects have an active status."
+
+### Automatic Timely Project Creation
+
+After building the project registry, compare it against existing projects in Timely. For any Monday.com project that does not yet have a matching Timely project:
+
+1. Present the proposed new project to the user, including: project name, billable/non-billable status, and source board
+2. Upon approval, call `timely_create_project` to create it via the Timely API
+3. The billable flag is determined by the board's configured billable status column and the mapping defined during setup
+
+If `timely_create_project` fails (e.g., the project name already exists in Timely under a different spelling), flag it to the user and ask for manual resolution.
 
 ## Phase 2: Search Term Loading from Monday.com
 
 **Monday.com is the single source of truth for search terms.** Before scanning any week, the agent reads search terms from Monday.com and uses them for matching. This gives the human full visibility and control over which terms are active.
 
-### Monday.com Columns
+### Monday.com Columns (per board)
 
-| Column | Column ID | Purpose |
-|--------|-----------|---------|
-| Timesheet Search Terms | `{search_terms_column_id}` | Comma-separated list of terms the agent uses to match memories to this project |
-| Ignorable Search Terms | `{ignorable_terms_column_id}` | Comma-separated list of terms the agent must NOT use for this project (overrides search terms) |
+Each board has its own column IDs for search terms and ignorable terms, configured during board setup and stored in `config.boards[].search_terms_column_id` and `config.boards[].ignorable_terms_column_id`.
 
-### Loading Workflow (runs before each week's scan)
+### Loading Workflow (runs before each scan)
 
-1. Query the Monday.com board for all items with a populated Timely project name
-2. For each item, read the `Timesheet Search Terms` column — parse as comma-separated, trimmed
-3. For each item, read the `Ignorable Search Terms` column — parse as comma-separated, trimmed
+1. For each board in `config.boards[]`, query all active items assigned to the user (same filter as Phase 1)
+2. For each item, read the search terms column — parse as comma-separated, trimmed
+3. For each item, read the ignorable terms column — parse as comma-separated, trimmed
 4. Build the project registry with these terms as the active search set
 5. If a project has no search terms in Monday.com, fall back to generating terms from the project name + client name (split into individual words), but **flag this to the user** so they can populate proper terms
 
@@ -107,12 +161,12 @@ Build a project registry:
 
 When the agent discovers a new search term that would have matched an entry to a project (e.g., during manual review or user feedback), the agent should:
 1. Present the proposed new term to the user
-2. Upon approval, **append** the new term to the existing `Timesheet Search Terms` value in Monday.com
+2. Upon approval, **append** the new term to the existing search terms column value on the correct board and item in Monday.com
 3. This keeps Monday.com as the authoritative record — the human can always see and edit what's there
 
 ### Ignorable Terms
 
-If a term appears in the `Ignorable Search Terms` column, the agent must skip any memory entry that would only match on that term. This lets the user suppress false positives without deleting search terms entirely. Example: "claude" might match many non-project activities, so it could be added as ignorable for a project where it causes noise.
+If a term appears in the ignorable terms column, the agent must skip any memory entry that would only match on that term. This lets the user suppress false positives without deleting search terms entirely. Example: "claude" might match many non-project activities, so it could be added as ignorable for a project where it causes noise.
 
 ### Search Term Quality Heuristics
 - **Good terms**: Specific tool names ("acme-redesign"), file names ("launch-dashboard.js"), unique client identifiers ("acme"), technical terms tied to the project ("universal linking", "bigquery dataset")
@@ -145,6 +199,7 @@ See [mcp-server/](mcp-server/) for the server code and [references/timely-ui-pat
 - `timely_scan_day` — scan one day's memories against search terms (headless)
 - `timely_scan_range` — scan multiple days in a single call (headless)
 - `timely_commit_entry` — assign a memory entry to a project (headless)
+- `timely_create_project` — create a new project in Timely via API (requires project name and billable flag)
 - `timely_check_session` — verify login status
 - `timely_login` — one-time headed browser for user to sign in
 - `timely_screenshot` / `timely_get_page_text` / `timely_run_js` — debugging tools
@@ -222,6 +277,7 @@ All committed entries go into `data/weekly-tracking.json`. This is the source of
             "title": "Terminal — acme-redesign build script",
             "duration": "15m",
             "project": "Acme Website Redesign",
+            "source_board": "Projects Board",
             "matched_term": "acme-redesign",
             "confidence": "high",
             "committed": true,
@@ -250,7 +306,7 @@ Every Monday, generate a summary report from the tracking file. **No browser aut
 ```
 Weekly Timesheet Reconciliation — {week_start} to {week_end}
 
-Project: Acme Website Redesign
+Project: Acme Website Redesign (from Projects Board)
   Search terms: acme-redesign, figma-acme, acme.com
   Mon: 15m (1 entry)
   Tue: 22m (2 entries)
@@ -261,7 +317,7 @@ Project: Acme Website Redesign
   Sun: 0m
   Week total: 45m
 
-Project: Beta App Development
+Project: Beta App Development (from Support Requests Board)
   Search terms: beta-app, flutter, beta-sprint
   Mon: 0m
   Tue: 0m
@@ -305,6 +361,7 @@ See [references/setup-guide.md](references/setup-guide.md) for the new-user onbo
 - **Always show confidence level** for each matched entry.
 - **Never commit without user approval**. Every match must be reviewed before logging.
 - **Never modify existing logged entries**. Only process unlogged memories.
+- **Never create a Timely project without user approval**. Always present proposed projects and get confirmation.
 - **If the Timely UI doesn't load or looks unexpected**, take a screenshot and stop. Don't click blindly.
 - **If a project name doesn't match in Timely's dropdown**, skip that entry and note it in the report. Don't guess.
 - **Preserve the tracking file** — append, don't overwrite. The history is useful for refining search terms over time.
